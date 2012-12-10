@@ -8,22 +8,22 @@ Test::MonkeyMock
 
     # Create a new mock object
     my $mock = Test::MonkeyMock->new;
-    $mock->mock(foo => sub {'bar'});
+    $mock->MOCK(foo => sub {'bar'});
     $mock->foo;
 
     # Mock existing object
     my $mock = Test::MonkeyMock->new(MyObject->new());
-    $mock->mock(foo => sub {'bar'});
+    $mock->MOCK(foo => sub {'bar'});
     $mock->foo;
 
-    # Check how many times the method was called
-    my $count = $mock->called('foo');
+    # Check how many times the method was CALLED
+    my $count = $mock->CALLED('foo');
 
     # Check what arguments were passed on the first call
-    my @args = $mock->call_args('foo');
+    my @args = $mock->CALL_ARGS('foo');
 
     # Check what arguments were passed on the second call
-    my @args = $mock->call_args('foo', 1);
+    my @args = $mock->CALL_ARGS('foo', 1);
 
 =head1 DESCRIPTION
 
@@ -37,9 +37,9 @@ L<Test::MonkeyMock> is also very strict. When mocking a new object:
 
 =over
 
-=item * throw when using C<called> on unmocked method
+=item * throw when using C<CALLED> on unmocked method
 
-=item * throw when using C<call_args> on unmocked method
+=item * throw when using C<CALL_ARGS> on unmocked method
 
 =back
 
@@ -47,11 +47,11 @@ When mocking an existing object:
 
 =over
 
-=item * throw when using C<mock> on unknown method
+=item * throw when using C<MOCK> on unknown method
 
-=item * throw when using C<called> on unknown method
+=item * throw when using C<CALLED> on unknown method
 
-=item * throw when using C<call_args> on unknown method
+=item * throw when using C<CALL_ARGS> on unknown method
 
 =back
 
