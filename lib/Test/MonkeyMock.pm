@@ -152,7 +152,7 @@ Test::MonkeyMock
     $mock->MOCK(foo => sub {'bar'});
     $mock->foo;
 
-    # Check how many times the method was CALLED
+    # Check how many times the method was called
     my $count = $mock->CALLED('foo');
 
     # Check what arguments were passed on the first call
