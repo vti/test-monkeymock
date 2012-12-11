@@ -13,6 +13,13 @@ subtest 'mock method' => sub {
     is( $mock->foo, 'bar' );
 };
 
+subtest 'return zero when no calls' => sub {
+    my $mock = Test::MonkeyMock->new();
+    $mock->MOCK( foo => sub { 'bar' } );
+
+    is( $mock->CALLED('foo'), 0 );
+};
+
 subtest 'remember how many times method was called' => sub {
     my $mock = Test::MonkeyMock->new();
     $mock->MOCK( foo => sub { 'bar' } );

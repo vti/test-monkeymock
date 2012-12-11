@@ -62,7 +62,7 @@ sub CALLED {
           unless exists $MOCKS->{$method};
     }
 
-    return $CALLS->{$method}->{called};
+    return $CALLS->{$method}->{called} || 0;
 }
 
 sub CALL_ARGS {
