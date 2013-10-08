@@ -178,6 +178,9 @@ Test::MonkeyMock
     # Check what arguments were passed on the second call
     my @args = $mock->mocked_call_args('foo', 1);
 
+    # Get all the stack
+    my $call_stack = $mock->mocked_call_stack('foo');
+
 =head1 DESCRIPTION
 
 Why? I used and still use L<Test::MockObject> and L<Test::MockObject::Extends>
