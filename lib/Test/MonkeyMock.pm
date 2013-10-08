@@ -20,7 +20,7 @@ sub new {
 
 my $magic_counter = 0;
 
-sub MOCK {
+sub mock {
     my $self = shift;
     my ( $method, $code ) = @_;
 
@@ -39,19 +39,25 @@ sub MOCK {
         $self->{instance} = $instance;
     }
     else {
-        my $MOCKS = $self->{MOCKS} ||= {};
-        $MOCKS->{$method} = $code;
+        my $mocks = $self->{mocks} ||= {};
+        $mocks->{$method} = $code;
     }
 
     return $self;
 }
 
-sub CALLED {
+sub mocked_instance {
+    my $self = shift;
+
+    return $self->{instance};
+}
+
+sub mocked_called {
     my $self = shift;
     my ($method) = @_;
 
-    my $MOCKS = $self->{MOCKS} ||= {};
-    my $CALLS = $self->{CALLS} ||= {};
+    my $mocks = $self->{mocks} ||= {};
+    my $calls = $self->{calls} ||= {};
 
     if ( $self->{instance} ) {
         Carp::croak("Unknown method '$method'")
@@ -59,20 +65,34 @@ sub CALLED {
     }
     else {
         Carp::croak("Unmocked method '$method'")
-          unless exists $MOCKS->{$method};
+          unless exists $mocks->{$method};
     }
 
-    return $CALLS->{$method}->{called} || 0;
+    return $calls->{$method}->{called} || 0;
 }
 
-sub CALL_ARGS {
+sub mocked_call_args {
     my $self = shift;
     my ( $method, $frame ) = @_;
 
     $frame ||= 0;
 
-    my $CALLS = $self->{CALLS} ||= {};
-    my $MOCKS = $self->{MOCKS} ||= {};
+    my $stack = $self->mocked_call_stack($method);
+
+    Carp::croak("Unknown frame '$frame'")
+      unless @$stack > $frame;
+
+    return @{$stack->[$frame]};
+}
+
+sub mocked_call_stack {
+    my $self = shift;
+    my ( $method ) = @_;
+
+    Carp::croak("Method is required") unless $method;
+
+    my $calls = $self->{calls} ||= {};
+    my $mocks = $self->{mocks} ||= {};
 
     if ( $self->{instance} ) {
         Carp::croak("Unknown method '$method'")
@@ -80,16 +100,13 @@ sub CALL_ARGS {
     }
     else {
         Carp::croak("Unmocked method '$method'")
-          unless exists $MOCKS->{$method};
+          unless exists $mocks->{$method};
     }
 
     Carp::croak("Method '$method' was not called")
-      unless exists $CALLS->{$method};
+      unless exists $calls->{$method};
 
-    Carp::croak("Unknown frame '$frame'")
-      unless @{ $CALLS->{$method}->{stack} } > $frame;
-
-    return @{ $CALLS->{$method}->{stack}->[$frame] };
+    return $calls->{$method}->{stack};
 }
 
 sub can {
@@ -100,8 +117,8 @@ sub can {
         return $self->{instance}->can($method);
     }
     else {
-        my $MOCKS = $self->{MOCKS} ||= {};
-        return exists $MOCKS->{$method};
+        my $mocks = $self->{mocks} ||= {};
+        return exists $mocks->{$method};
     }
 }
 
@@ -114,20 +131,20 @@ sub AUTOLOAD {
 
     return if $method =~ /^[A-Z]+$/;
 
-    my $CALLS = $self->{CALLS} ||= {};
-    my $MOCKS = $self->{MOCKS} ||= {};
+    my $calls = $self->{calls} ||= {};
+    my $mocks = $self->{mocks} ||= {};
 
-    $CALLS->{$method}->{called}++;
-    push @{ $CALLS->{$method}->{stack} }, [@_];
+    $calls->{$method}->{called}++;
+    push @{ $calls->{$method}->{stack} }, [@_];
 
     Carp::croak("Unmocked method '$method'")
-      if !$self->{instance} && !exists $MOCKS->{$method};
+      if !$self->{instance} && !exists $mocks->{$method};
 
     if ( $self->{instance} ) {
         return $self->{instance}->$method(@_);
     }
     else {
-        return $MOCKS->{$method}->( $self, @_ );
+        return $mocks->{$method}->( $self, @_ );
     }
 }
 
@@ -144,22 +161,22 @@ Test::MonkeyMock
 
     # Create a new mock object
     my $mock = Test::MonkeyMock->new;
-    $mock->MOCK(foo => sub {'bar'});
+    $mock->mock(foo => sub {'bar'});
     $mock->foo;
 
     # Mock existing object
     my $mock = Test::MonkeyMock->new(MyObject->new());
-    $mock->MOCK(foo => sub {'bar'});
+    $mock->mock(foo => sub {'bar'});
     $mock->foo;
 
     # Check how many times the method was called
-    my $count = $mock->CALLED('foo');
+    my $count = $mock->mocked_called('foo');
 
     # Check what arguments were passed on the first call
-    my @args = $mock->CALL_ARGS('foo');
+    my @args = $mock->mocked_call_args('foo');
 
     # Check what arguments were passed on the second call
-    my @args = $mock->CALL_ARGS('foo', 1);
+    my @args = $mock->mocked_call_args('foo', 1);
 
 =head1 DESCRIPTION
 
@@ -173,9 +190,9 @@ L<Test::MonkeyMock> is also very strict. When mocking a new object:
 
 =over
 
-=item * throw when using C<CALLED> on unmocked method
+=item * throw when using C<mocked_called> on unmocked method
 
-=item * throw when using C<CALL_ARGS> on unmocked method
+=item * throw when using C<mocked_call_args> on unmocked method
 
 =back
 
@@ -183,11 +200,11 @@ When mocking an existing object:
 
 =over
 
-=item * throw when using C<MOCK> on unknown method
+=item * throw when using C<mock> on unknown method
 
-=item * throw when using C<CALLED> on unknown method
+=item * throw when using C<mocked_called> on unknown method
 
-=item * throw when using C<CALL_ARGS> on unknown method
+=item * throw when using C<mocked_call_args> on unknown method
 
 =back
 
@@ -197,7 +214,7 @@ Viacheslav Tykhanovskyi, C<vti@cpan.org>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012, Viacheslav Tykhanovskyi
+Copyright (C) 2012-2013, Viacheslav Tykhanovskyi
 
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
