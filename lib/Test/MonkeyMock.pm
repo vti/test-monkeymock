@@ -155,7 +155,7 @@ __END__
 
 =head1 NAME
 
-Test::MonkeyMock
+Test::MonkeyMock - Usable mock class
 
 =head1 SYNOPSIS
 
