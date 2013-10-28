@@ -44,6 +44,13 @@ subtest 'remember the stack' => sub {
     is_deeply( [ $mock->mocked_call_args( 'foo', 2 ) ], ['Hi there!'] );
 };
 
+subtest 'return sub ref on can' => sub {
+    my $mock = Test::MonkeyMock->new();
+    $mock->mock(foo => sub {});
+
+    ok(ref $mock->can('foo') eq 'CODE');
+};
+
 subtest 'throw on unknown frame' => sub {
     my $mock = Test::MonkeyMock->new();
     $mock->mock( foo => sub { 'bar' } );

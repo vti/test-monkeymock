@@ -21,6 +21,7 @@ sub new {
 
 sub foo { shift->{foo} }
 sub bar { shift->{bar} }
+sub me  { shift }
 
 package main;
 
@@ -29,6 +30,18 @@ subtest 'mock existing method' => sub {
     $mock->mock(foo => sub { 'bar' });
 
     is($mock->foo, 'bar');
+};
+
+subtest 'pass mock, not original instance to methods' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    ok($mock->me->isa('Test::MonkeyMock'));
+};
+
+subtest 'return sub ref on can' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    ok(ref $mock->can('foo') eq 'CODE');
 };
 
 subtest 'thrown when mocking unknown method' => sub {
