@@ -2,6 +2,8 @@ Revision history for perl module Test::MonkeyMock
 
 {{$NEXT}}
 
+0.02 2013-10-28T13:41:18Z
+
  - 'can' returns sub ref
  - No more class magic
  - Original class gets always a mocked instance
