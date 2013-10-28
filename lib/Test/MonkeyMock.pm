@@ -12,23 +12,28 @@ sub new {
     $class = ref $class if ref $class;
     my ($instance) = @_;
 
-    my $self = { instance => $instance };
+    my $self = {};
     bless $self, $class;
+
+    if ($instance) {
+        %$self = %$instance;
+        $self->{__PACKAGE__ . 'instance'} = $instance;
+    }
 
     return $self;
 }
 
 sub mock {
     my $self = shift;
-    my ( $method, $code ) = @_;
+    my ($method, $code) = @_;
 
-    if ( my $instance = $self->{instance} ) {
+    if (my $instance = $self->{__PACKAGE__ . 'instance'}) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
 
     }
 
-    my $mocks = $self->{mocks} ||= {};
+    my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
     $mocks->{$method} = $code;
 
     return $self;
@@ -37,17 +42,17 @@ sub mock {
 sub mocked_instance {
     my $self = shift;
 
-    return $self->{instance};
+    return $self->{__PACKAGE__ . 'instance'};
 }
 
 sub mocked_called {
     my $self = shift;
     my ($method) = @_;
 
-    my $mocks = $self->{mocks} ||= {};
-    my $calls = $self->{calls} ||= {};
+    my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
+    my $calls = $self->{__PACKAGE__ . 'calls'} ||= {};
 
-    if ( $self->{instance} ) {
+    if ($self->{__PACKAGE__ . 'instance'}) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
     }
@@ -61,7 +66,7 @@ sub mocked_called {
 
 sub mocked_call_args {
     my $self = shift;
-    my ( $method, $frame ) = @_;
+    my ($method, $frame) = @_;
 
     $frame ||= 0;
 
@@ -75,14 +80,14 @@ sub mocked_call_args {
 
 sub mocked_call_stack {
     my $self = shift;
-    my ( $method ) = @_;
+    my ($method) = @_;
 
     Carp::croak("Method is required") unless $method;
 
-    my $calls = $self->{calls} ||= {};
-    my $mocks = $self->{mocks} ||= {};
+    my $calls = $self->{__PACKAGE__ . 'calls'} ||= {};
+    my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
 
-    if ( $self->{instance} ) {
+    if ($self->{__PACKAGE__ . 'instance'}) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
     }
@@ -101,11 +106,11 @@ sub can {
     my $self = shift;
     my ($method) = @_;
 
-    if ( $self->{instance} ) {
-        return $self->{instance}->can($method);
+    if ($self->{__PACKAGE__ . 'instance'}) {
+        return $self->{__PACKAGE__ . 'instance'}->can($method);
     }
     else {
-        my $mocks = $self->{mocks} ||= {};
+        my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
         return $mocks->{$method};
     }
 }
@@ -115,23 +120,23 @@ our $AUTOLOAD;
 sub AUTOLOAD {
     my $self = shift;
 
-    my ($method) = ( split /::/, $AUTOLOAD )[-1];
+    my ($method) = (split /::/, $AUTOLOAD)[-1];
 
     return if $method =~ /^[A-Z]+$/;
 
-    my $calls = $self->{calls} ||= {};
-    my $mocks = $self->{mocks} ||= {};
+    my $calls = $self->{__PACKAGE__ . 'calls'} ||= {};
+    my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
 
     $calls->{$method}->{called}++;
-    push @{ $calls->{$method}->{stack} }, [@_];
+    push @{$calls->{$method}->{stack}}, [@_];
 
     Carp::croak("Unmocked method '$method'")
-      if !$self->{instance} && !exists $mocks->{$method};
+      if !$self->{__PACKAGE__ . 'instance'} && !exists $mocks->{$method};
 
-    return $mocks->{$method}->( $self, @_ ) if exists $mocks->{$method};
+    return $mocks->{$method}->($self, @_) if exists $mocks->{$method};
 
-    if ( $self->{instance} ) {
-        return $self->{instance}->can($method)->($self, @_);
+    if ($self->{__PACKAGE__ . 'instance'}) {
+        return $self->{__PACKAGE__ . 'instance'}->can($method)->($self, @_);
     }
 
     return;

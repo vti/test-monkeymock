@@ -32,6 +32,12 @@ subtest 'mock existing method' => sub {
     is($mock->foo, 'bar');
 };
 
+subtest 'copy instance state' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    is($mock->{foo}, 'foo');
+};
+
 subtest 'pass mock, not original instance to methods' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
 
