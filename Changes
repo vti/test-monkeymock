@@ -2,6 +2,8 @@ Revision history for perl module Test::MonkeyMock
 
 {{$NEXT}}
 
+0.03 2013-10-28T14:11:31Z
+
  - Copy internal object state to mock object too
 
 0.02 2013-10-28T13:41:18Z
