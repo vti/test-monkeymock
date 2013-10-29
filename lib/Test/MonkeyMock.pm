@@ -19,7 +19,7 @@ sub new {
 
     if ($instance) {
         my $new_package =
-          ref($self) . '::' . ref($instance) . '::' . $magic_counter++;
+          __PACKAGE__ . '::' . ref($instance) . '::' . ($magic_counter++);
 
         no strict 'refs';
         @{$new_package . '::ISA'} = (ref($instance));
@@ -48,7 +48,11 @@ sub mock {
         Carp::croak("Unknown method '$method'")
           unless my $orig_method = $self->can($method);
 
-        my $new_package = __PACKAGE__ . '::' . ref($self) . $magic_counter++;
+        my $ref_self = ref($self);
+        my $package = __PACKAGE__;
+        $ref_self =~ s/^${package}::.*::\d+//;
+
+        my $new_package = __PACKAGE__ . '::' . $ref_self . '::' . $magic_counter++;
 
         no strict 'refs';
         @{$new_package . '::ISA'} = ref($self);
