@@ -38,10 +38,19 @@ subtest 'copy instance state' => sub {
     is($mock->{foo}, 'foo');
 };
 
-subtest 'pass mock, not original instance to methods' => sub {
+subtest 'pass isa testing' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
 
-    ok($mock->me->isa('Test::MonkeyMock'));
+    ok($mock->me->isa('MyClass'));
+};
+
+subtest 'remember call stack of unmocked method' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    $mock->foo('here');
+
+    is($mock->mocked_called('foo'), 1);
+    is_deeply($mock->mocked_call_stack('foo'), [['here']]);
 };
 
 subtest 'return sub ref on can' => sub {

@@ -23,18 +23,30 @@ sub new {
     return $self;
 }
 
+my $magic_counter = 0;
+
 sub mock {
     my $self = shift;
     my ($method, $code) = @_;
 
     if (my $instance = $self->{__PACKAGE__ . 'instance'}) {
         Carp::croak("Unknown method '$method'")
-          unless $self->can($method);
+          unless my $orig_method = $self->can($method);
 
+        my $new_package = ref($self) . '::' . ref($instance) . $magic_counter++;
+
+        no strict 'refs';
+        @{$new_package . '::ISA'} = (ref($instance));
+        *{$new_package . '::' . $method} = $code;
+
+        bless $instance, $new_package;
+
+        $self->{__PACKAGE__ . 'instance'} = $instance;
     }
-
-    my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
-    $mocks->{$method} = $code;
+    else {
+        my $mocks = $self->{__PACKAGE__ . 'mocks'} ||= {};
+        $mocks->{$method} = $code;
+    }
 
     return $self;
 }
@@ -133,13 +145,12 @@ sub AUTOLOAD {
     Carp::croak("Unmocked method '$method'")
       if !$self->{__PACKAGE__ . 'instance'} && !exists $mocks->{$method};
 
-    return $mocks->{$method}->($self, @_) if exists $mocks->{$method};
-
     if ($self->{__PACKAGE__ . 'instance'}) {
-        return $self->{__PACKAGE__ . 'instance'}->can($method)->($self, @_);
+        return $self->{__PACKAGE__ . 'instance'}->$method(@_);
     }
-
-    return;
+    else {
+        return $mocks->{$method}->($self, @_);
+    }
 }
 
 1;
