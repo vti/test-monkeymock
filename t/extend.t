@@ -44,15 +44,6 @@ subtest 'pass isa testing' => sub {
     ok($mock->me->isa('MyClass'));
 };
 
-subtest 'remember call stack of unmocked method' => sub {
-    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
-
-    $mock->foo('here');
-
-    is($mock->mocked_called('foo'), 1);
-    is_deeply($mock->mocked_call_stack('foo'), [['here']]);
-};
-
 subtest 'return sub ref on can' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
 
@@ -70,8 +61,10 @@ subtest 'thrown when mocking unknown method' => sub {
     );
 };
 
-subtest 'remember how many times method was called' => sub {
+subtest 'remember how many times not mocked method was called' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    $mock->mock('foo');
 
     $mock->foo;
     $mock->foo;
