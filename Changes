@@ -2,6 +2,10 @@ Revision history for perl module Test::MonkeyMock
 
 {{$NEXT}}
 
+0.05 2013-11-01T14:46:45Z
+
+ - Remember return values
+
 0.04 2013-10-29T15:12:26Z
 
  - Magic needed not mocked method sniffing
