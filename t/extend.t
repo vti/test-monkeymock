@@ -84,7 +84,7 @@ subtest 'remember how many times mocked method was called' => sub {
     is($mock->mocked_called('foo'), 3);
 };
 
-subtest 'remember the stack' => sub {
+subtest 'remember the call stack' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
     $mock->mock(foo => sub { 'bar' });
 
@@ -95,7 +95,7 @@ subtest 'remember the stack' => sub {
     is_deeply($mock->mocked_call_stack('foo'), [[], [1], ['Hi there!']]);
 };
 
-subtest 'return stack by index' => sub {
+subtest 'return call stack by index' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
     $mock->mock(foo => sub { 'bar' });
 
@@ -130,6 +130,40 @@ subtest 'throw on unknown method when getting stack' => sub {
 
     like(exception { $mock->mocked_call_args('unknown_method') },
         qr/Unknown method 'unknown_method'/);
+};
+
+subtest 'remember the return stack' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+
+    $mock->mock(foo => sub { 'bar' });
+    $mock->foo;
+
+    $mock->mock(foo => sub { 'baz' });
+    $mock->foo;
+
+    $mock->mock(foo => sub { 'qux' });
+    $mock->foo;
+
+    is_deeply($mock->mocked_return_stack('foo'), [['bar'], ['baz'], ['qux']]);
+};
+
+subtest 'return return stack by index' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+    $mock->mock(foo => sub { 'bar' });
+
+    $mock->mock(foo => sub { 'bar' });
+    $mock->foo;
+
+    $mock->mock(foo => sub { 'baz' });
+    $mock->foo;
+
+    $mock->mock(foo => sub { 'qux' });
+    $mock->foo;
+
+
+    is_deeply([$mock->mocked_return_args('foo', 0)], ['bar']);
+    is_deeply([$mock->mocked_return_args('foo', 1)], ['baz']);
+    is_deeply([$mock->mocked_return_args('foo', 2)], ['qux']);
 };
 
 done_testing;

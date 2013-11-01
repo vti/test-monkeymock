@@ -24,8 +24,16 @@ sub new {
         no strict 'refs';
         @{$new_package . '::ISA'} = (ref($instance));
 
-        for
-          my $method (qw/mock mocked_called mocked_call_args mocked_call_stack/)
+        for my $method (
+            qw/
+            mock
+            mocked_called
+            mocked_call_args
+            mocked_call_stack
+            mocked_return_args
+            mocked_return_stack
+            /
+          )
         {
             *{$new_package . '::' . $method} = sub { goto &$method };
         }
@@ -58,19 +66,28 @@ sub mock {
         @{$new_package . '::ISA'} = ref($self);
         *{$new_package . '::' . $method} = sub {
             my $instance = shift;
-            my $calls    = $self->{__PACKAGE__ . '::calls'} ||= {};
-            my $mocks    = $self->{__PACKAGE__ . '::mocks'} ||= {};
+
+            my $calls   = $self->{__PACKAGE__ . '::calls'}   ||= {};
+            my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
+            my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
 
             $calls->{$method}->{called}++;
+
             push @{$calls->{$method}->{stack}}, [@_];
+
+            my @result;
 
             unshift @_, $instance;
             if ($code) {
-                goto &$code;
+                @result = $code->(@_);
             }
             else {
-                goto &$orig_method;
+                @result = $orig_method->(@_);
             }
+
+            push @{$returns->{$method}->{stack}}, [@result];
+
+            return wantarray ? @result : $result[0];
         };
 
         bless $self, $new_package;
@@ -148,6 +165,44 @@ sub mocked_call_stack {
     return $calls->{$method}->{stack};
 }
 
+sub mocked_return_args {
+    my $self = shift;
+    my ($method, $frame) = @_;
+
+    $frame ||= 0;
+
+    my $stack = $self->mocked_return_stack($method);
+
+    Carp::croak("Unknown frame '$frame'")
+      unless @$stack > $frame;
+
+    return @{$stack->[$frame]};
+}
+
+sub mocked_return_stack {
+    my $self = shift;
+    my ($method) = @_;
+
+    Carp::croak("Method is required") unless $method;
+
+    my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
+    my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
+
+    if ($self->{__PACKAGE__ . '::instance'}) {
+        Carp::croak("Unknown method '$method'")
+          unless $self->can($method);
+    }
+    else {
+        Carp::croak("Unmocked method '$method'")
+          unless exists $mocks->{$method};
+    }
+
+    Carp::croak("Method '$method' was not called")
+      unless exists $returns->{$method};
+
+    return $returns->{$method}->{stack};
+}
+
 sub can {
     my $self = shift;
     my ($method) = @_;
@@ -170,16 +225,22 @@ sub AUTOLOAD {
 
     return if $method =~ /^[A-Z]+$/;
 
-    my $calls = $self->{__PACKAGE__ . '::calls'} ||= {};
-    my $mocks = $self->{__PACKAGE__ . '::mocks'} ||= {};
-
-    $calls->{$method}->{called}++;
-    push @{$calls->{$method}->{stack}}, [@_];
+    my $calls   = $self->{__PACKAGE__ . '::calls'}   ||= {};
+    my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
+    my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
 
     Carp::croak("Unmocked method '$method'")
       if !exists $mocks->{$method};
 
-    return $mocks->{$method}->($self, @_);
+    $calls->{$method}->{called}++;
+
+    push @{$calls->{$method}->{stack}}, [@_];
+
+    my @result = $mocks->{$method}->($self, @_);
+
+    push @{$returns->{$method}->{stack}}, [@result];
+
+    return wantarray ? @result : $result[0];
 }
 
 1;
