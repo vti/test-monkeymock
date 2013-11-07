@@ -4,9 +4,11 @@ use strict;
 use warnings;
 
 require Carp;
+use Storable;
 
 our $VERSION = '0.05';
 
+my $registry      = {};
 my $magic_counter = 0;
 
 sub new {
@@ -14,62 +16,72 @@ sub new {
     $class = ref $class if ref $class;
     my ($instance) = @_;
 
-    my $self = {};
-    bless $self, $class;
+    my $new_package;
 
     if ($instance) {
-        my $new_package =
-          __PACKAGE__ . '::' . ref($instance) . '::' . ($magic_counter++);
+        $new_package =
+            __PACKAGE__ . '::'
+          . ref($instance)
+          . '::__instance__'
+          . ($magic_counter++);
 
         no strict 'refs';
         @{$new_package . '::ISA'} = (ref($instance));
+    }
+    else {
+        $instance = {};
+        $new_package = __PACKAGE__ . '::' . ($magic_counter++);
 
-        for my $method (
-            qw/
-            mock
-            mocked_called
-            mocked_call_args
-            mocked_call_stack
-            mocked_return_args
-            mocked_return_stack
-            /
-          )
-        {
-            *{$new_package . '::' . $method} = sub { goto &$method };
-        }
-
-        bless $instance, $new_package;
-
-        $instance->{__PACKAGE__ . '::instance'}++;
-
-        return $instance;
+        no strict 'refs';
+        @{$new_package . '::ISA'} = __PACKAGE__;
     }
 
-    return $self;
+    no strict 'refs';
+    for my $method (
+        qw/
+        mock
+        mocked_called
+        mocked_call_args
+        mocked_call_stack
+        mocked_return_args
+        mocked_return_stack
+        /
+      )
+    {
+        *{$new_package . '::' . $method} = sub { goto &$method };
+    }
+
+    bless $instance, $new_package;
+
+    return $instance;
 }
 
 sub mock {
     my $self = shift;
     my ($method, $code) = @_;
 
-    if (my $instance = $self->{__PACKAGE__ . '::instance'}) {
+    if (ref($self) =~ m/__instance__/) {
         Carp::croak("Unknown method '$method'")
           unless my $orig_method = $self->can($method);
 
         my $ref_self = ref($self);
-        my $package = __PACKAGE__;
-        $ref_self =~ s/^${package}::.*::\d+//;
+        my $package  = __PACKAGE__;
+        $ref_self =~ s/^${package}::.*::__instance__\d+//;
 
-        my $new_package = __PACKAGE__ . '::' . $ref_self . '::' . $magic_counter++;
+        my $new_package =
+          __PACKAGE__ . '::' . $ref_self . '::__instance__' . $magic_counter++;
+
+        $registry->{$new_package} =
+          Storable::dclone($registry->{ref($self)} || {});
 
         no strict 'refs';
         @{$new_package . '::ISA'} = ref($self);
         *{$new_package . '::' . $method} = sub {
             my $instance = shift;
 
-            my $calls   = $self->{__PACKAGE__ . '::calls'}   ||= {};
-            my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
-            my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
+            my $calls   = $registry->{ref($self)}->{'calls'}   ||= {};
+            my $returns = $registry->{ref($self)}->{'returns'} ||= {};
+            my $mocks   = $registry->{ref($self)}->{'mocks'}   ||= {};
 
             $calls->{$method}->{called}++;
 
@@ -91,31 +103,23 @@ sub mock {
         };
 
         bless $self, $new_package;
-
-        $self->{__PACKAGE__ . '::instance'}++;
     }
     else {
-        my $mocks = $self->{__PACKAGE__ . '::mocks'} ||= {};
+        my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
         $mocks->{$method} = $code;
     }
 
     return $self;
 }
 
-sub mocked_instance {
-    my $self = shift;
-
-    return $self->{__PACKAGE__ . '::instance'};
-}
-
 sub mocked_called {
     my $self = shift;
     my ($method) = @_;
 
-    my $mocks = $self->{__PACKAGE__ . '::mocks'} ||= {};
-    my $calls = $self->{__PACKAGE__ . '::calls'} ||= {};
+    my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
+    my $calls = $registry->{ref($self)}->{'calls'} ||= {};
 
-    if ($self->{__PACKAGE__ . '::instance'}) {
+    if (ref($self) =~ m/__instance__/) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
     }
@@ -147,10 +151,10 @@ sub mocked_call_stack {
 
     Carp::croak("Method is required") unless $method;
 
-    my $calls = $self->{__PACKAGE__ . '::calls'} ||= {};
-    my $mocks = $self->{__PACKAGE__ . '::mocks'} ||= {};
+    my $calls = $registry->{ref($self)}->{'calls'} ||= {};
+    my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
 
-    if ($self->{__PACKAGE__ . '::instance'}) {
+    if (ref($self) =~ m/__instance__/) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
     }
@@ -185,10 +189,10 @@ sub mocked_return_stack {
 
     Carp::croak("Method is required") unless $method;
 
-    my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
-    my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
+    my $returns = $registry->{ref($self)}->{'returns'} ||= {};
+    my $mocks   = $registry->{ref($self)}->{'mocks'}   ||= {};
 
-    if ($self->{__PACKAGE__ . '::instance'}) {
+    if (ref($self) =~ m/__instance__/) {
         Carp::croak("Unknown method '$method'")
           unless $self->can($method);
     }
@@ -207,11 +211,11 @@ sub can {
     my $self = shift;
     my ($method) = @_;
 
-    if ($self->{__PACKAGE__ . '::instance'}) {
+    if (ref($self) =~ m/__instance__/) {
         return $self->can($method);
     }
     else {
-        my $mocks = $self->{__PACKAGE__ . '::mocks'} ||= {};
+        my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
         return $mocks->{$method};
     }
 }
@@ -225,9 +229,9 @@ sub AUTOLOAD {
 
     return if $method =~ /^[A-Z]+$/;
 
-    my $calls   = $self->{__PACKAGE__ . '::calls'}   ||= {};
-    my $returns = $self->{__PACKAGE__ . '::returns'} ||= {};
-    my $mocks   = $self->{__PACKAGE__ . '::mocks'}   ||= {};
+    my $calls   = $registry->{ref($self)}->{'calls'}   ||= {};
+    my $returns = $registry->{ref($self)}->{'returns'} ||= {};
+    my $mocks   = $registry->{ref($self)}->{'mocks'}   ||= {};
 
     Carp::croak("Unmocked method '$method'")
       if !exists $mocks->{$method};

@@ -23,10 +23,28 @@ sub foo { shift->{foo} }
 sub bar { shift->{bar} }
 sub me  { shift }
 
+package MyNotHashClass;
+sub new {
+    my $class = shift;
+
+    my $self = [];
+    bless $self, $class;
+
+    return $self;
+}
+sub foo { 'old' }
+
 package main;
 
 subtest 'mock existing method' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+    $mock->mock(foo => sub { 'bar' });
+
+    is($mock->foo, 'bar');
+};
+
+subtest 'mock not hash based object' => sub {
+    my $mock = Test::MonkeyMock->new(MyNotHashClass->new());
     $mock->mock(foo => sub { 'bar' });
 
     is($mock->foo, 'bar');
@@ -159,7 +177,6 @@ subtest 'return return stack by index' => sub {
 
     $mock->mock(foo => sub { 'qux' });
     $mock->foo;
-
 
     is_deeply([$mock->mocked_return_args('foo', 0)], ['bar']);
     is_deeply([$mock->mocked_return_args('foo', 1)], ['baz']);
