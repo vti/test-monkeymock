@@ -6,7 +6,7 @@ use warnings;
 require Carp;
 use Storable;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 my $registry      = {};
 my $magic_counter = 0;

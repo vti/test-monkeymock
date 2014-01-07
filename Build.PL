@@ -23,7 +23,7 @@ my %args = (
         'Module::Build' => 0.38,
     },
 
-    name            => 'test-monkeymock',
+    name            => 'Test-MonkeyMock',
     module_name     => 'Test::MonkeyMock',
     allow_pureperl => 0,
 
