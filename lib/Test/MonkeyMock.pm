@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 require Carp;
-use Storable;
 
 our $VERSION = '0.07';
 
@@ -67,7 +66,7 @@ sub mock {
         if (exists $registry->{ref($self)}->{'mocks'}->{$method}) {
             push @{$registry->{ref($self)}->{'mocks'}->{$method}},
               {code => $code, orig_code => $orig_method};
-            return;
+            return $self;
         }
 
         my $ref_self = ref($self);
@@ -77,8 +76,7 @@ sub mock {
         my $new_package =
           __PACKAGE__ . '::' . $ref_self . '::__instance__' . $magic_counter++;
 
-        $registry->{$new_package} =
-          Storable::dclone($registry->{ref($self)} || {});
+        $registry->{$new_package} = $registry->{ref($self)};
 
         my $mocks = $registry->{$new_package}->{'mocks'} ||= {};
         $mocks->{$method} =

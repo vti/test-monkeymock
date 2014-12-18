@@ -43,6 +43,15 @@ subtest 'mock existing method' => sub {
     is($mock->foo, 'bar');
 };
 
+subtest 'mock several existing methods' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+    $mock->mock(foo => sub { 'bar' });
+    $mock->mock(bar => sub { 'baz' });
+
+    is($mock->foo, 'bar');
+    is($mock->bar, 'baz');
+};
+
 subtest 'mock existing method with options' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
     $mock->mock(foo => sub { 'bar' }, when => sub {@_ == 2});
