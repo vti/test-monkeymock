@@ -58,7 +58,7 @@ sub new {
 
 sub mock {
     my $self = shift;
-    my ($method, $code) = @_;
+    my ($method, $code, %options) = @_;
 
     if (ref($self) =~ m/__instance__/) {
         Carp::croak("Unknown method '$method'")
@@ -81,7 +81,6 @@ sub mock {
 
             my $calls   = $registry->{ref($self)}->{'calls'}   ||= {};
             my $returns = $registry->{ref($self)}->{'returns'} ||= {};
-            my $mocks   = $registry->{ref($self)}->{'mocks'}   ||= {};
 
             $calls->{$method}->{called}++;
 
@@ -106,7 +105,11 @@ sub mock {
     }
     else {
         my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
-        $mocks->{$method} = $code;
+        push @{$mocks->{$method}},
+          {
+            code    => $code,
+            options => \%options
+          };
     }
 
     return $self;
@@ -216,7 +219,7 @@ sub can {
     }
     else {
         my $mocks = $registry->{ref($self)}->{'mocks'} ||= {};
-        return $mocks->{$method};
+        return $mocks->{$method}->[0]->{code};
     }
 }
 
@@ -236,15 +239,25 @@ sub AUTOLOAD {
     Carp::croak("Unmocked method '$method'")
       if !exists $mocks->{$method};
 
-    $calls->{$method}->{called}++;
+    foreach my $mock (@{$mocks->{$method}}) {
+        if (my $options = $mock->{options}) {
+            if (my $when = $options->{when}) {
+                next unless $when->($self, @_);
+            }
+        }
 
-    push @{$calls->{$method}->{stack}}, [@_];
+        $calls->{$method}->{called}++;
 
-    my @result = $mocks->{$method}->($self, @_);
+        push @{$calls->{$method}->{stack}}, [@_];
 
-    push @{$returns->{$method}->{stack}}, [@result];
+        my @result = $mock->{code}->($self, @_);
 
-    return wantarray ? @result : $result[0];
+        push @{$returns->{$method}->{stack}}, [@result];
+
+        return wantarray ? @result : $result[0];
+    }
+
+    Carp::croak("Unmocked method '$method'");
 }
 
 1;
