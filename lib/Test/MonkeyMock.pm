@@ -64,6 +64,12 @@ sub mock {
         Carp::croak("Unknown method '$method'")
           unless my $orig_method = $self->can($method);
 
+        if (exists $registry->{ref($self)}->{'mocks'}->{$method}) {
+            push @{$registry->{ref($self)}->{'mocks'}->{$method}},
+              {code => $code, orig_code => $orig_method};
+            return;
+        }
+
         my $ref_self = ref($self);
         my $package  = __PACKAGE__;
         $ref_self =~ s/^${package}::.*::__instance__\d+//;
@@ -74,31 +80,14 @@ sub mock {
         $registry->{$new_package} =
           Storable::dclone($registry->{ref($self)} || {});
 
+        my $mocks = $registry->{$new_package}->{'mocks'} ||= {};
+        $mocks->{$method} =
+          [{code => $code, orig_code => $orig_method, options => \%options}];
+
         no strict 'refs';
         @{$new_package . '::ISA'} = ref($self);
         *{$new_package . '::' . $method} = sub {
-            my $instance = shift;
-
-            my $calls   = $registry->{ref($self)}->{'calls'}   ||= {};
-            my $returns = $registry->{ref($self)}->{'returns'} ||= {};
-
-            $calls->{$method}->{called}++;
-
-            push @{$calls->{$method}->{stack}}, [@_];
-
-            my @result;
-
-            unshift @_, $instance;
-            if ($code) {
-                @result = $code->(@_);
-            }
-            else {
-                @result = $orig_method->(@_);
-            }
-
-            push @{$returns->{$method}->{stack}}, [@result];
-
-            return wantarray ? @result : $result[0];
+            _dispatch($new_package, $method, @_);
         };
 
         bless $self, $new_package;
@@ -232,9 +221,15 @@ sub AUTOLOAD {
 
     return if $method =~ /^[A-Z]+$/;
 
-    my $calls   = $registry->{ref($self)}->{'calls'}   ||= {};
-    my $returns = $registry->{ref($self)}->{'returns'} ||= {};
-    my $mocks   = $registry->{ref($self)}->{'mocks'}   ||= {};
+    return _dispatch(ref($self), $method, $self, @_);
+}
+
+sub _dispatch {
+    my ($ref_self, $method, @args) = @_;
+
+    my $calls   = $registry->{$ref_self}->{'calls'}   ||= {};
+    my $returns = $registry->{$ref_self}->{'returns'} ||= {};
+    my $mocks   = $registry->{$ref_self}->{'mocks'}   ||= {};
 
     Carp::croak("Unmocked method '$method'")
       if !exists $mocks->{$method};
@@ -242,22 +237,30 @@ sub AUTOLOAD {
     foreach my $mock (@{$mocks->{$method}}) {
         if (my $options = $mock->{options}) {
             if (my $when = $options->{when}) {
-                next unless $when->($self, @_);
+                next unless $when->(@args);
             }
         }
 
         $calls->{$method}->{called}++;
 
-        push @{$calls->{$method}->{stack}}, [@_];
+        push @{$calls->{$method}->{stack}}, [@args[1 .. $#args]];
 
-        my @result = $mock->{code}->($self, @_);
+        my @result;
+
+        if (my $code = $mock->{code}) {
+            @result = $code->(@args);
+        }
+        elsif (my $orig_code = $mock->{orig_code}) {
+            @result = $orig_code->(@args);
+        }
+        else {
+            Carp::croak("Unmocked method '$method'");
+        }
 
         push @{$returns->{$method}->{stack}}, [@result];
 
         return wantarray ? @result : $result[0];
     }
-
-    Carp::croak("Unmocked method '$method'");
 }
 
 1;

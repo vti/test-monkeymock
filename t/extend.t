@@ -43,6 +43,15 @@ subtest 'mock existing method' => sub {
     is($mock->foo, 'bar');
 };
 
+subtest 'mock existing method with options' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
+    $mock->mock(foo => sub { 'bar' }, when => sub {@_ == 2});
+    $mock->mock(foo => sub { 'else' });
+
+    is($mock->foo(1), 'bar');
+    is($mock->foo, 'else');
+};
+
 subtest 'mock not hash based object' => sub {
     my $mock = Test::MonkeyMock->new(MyNotHashClass->new());
     $mock->mock(foo => sub { 'bar' });
@@ -153,13 +162,11 @@ subtest 'throw on unknown method when getting stack' => sub {
 subtest 'remember the return stack' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
 
-    $mock->mock(foo => sub { 'bar' });
-    $mock->foo;
+    my @return = (qw/bar baz qux/);
+    $mock->mock(foo => sub { shift @return });
 
-    $mock->mock(foo => sub { 'baz' });
     $mock->foo;
-
-    $mock->mock(foo => sub { 'qux' });
+    $mock->foo;
     $mock->foo;
 
     is_deeply($mock->mocked_return_stack('foo'), [['bar'], ['baz'], ['qux']]);
@@ -167,15 +174,12 @@ subtest 'remember the return stack' => sub {
 
 subtest 'return return stack by index' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
-    $mock->mock(foo => sub { 'bar' });
 
-    $mock->mock(foo => sub { 'bar' });
+    my @return = (qw/bar baz qux/);
+    $mock->mock(foo => sub { shift @return });
+
     $mock->foo;
-
-    $mock->mock(foo => sub { 'baz' });
     $mock->foo;
-
-    $mock->mock(foo => sub { 'qux' });
     $mock->foo;
 
     is_deeply([$mock->mocked_return_args('foo', 0)], ['bar']);
