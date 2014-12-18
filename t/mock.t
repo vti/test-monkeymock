@@ -15,11 +15,11 @@ subtest 'mock method' => sub {
 
 subtest 'mock method with when option' => sub {
     my $mock = Test::MonkeyMock->new();
-    $mock->mock(foo => sub { 'bar' }, when => sub {@_ == 2});
+    $mock->mock(foo => sub { 'bar' }, when => sub { @_ == 2 });
     $mock->mock(foo => sub { 'else' });
 
     is($mock->foo(1), 'bar');
-    is($mock->foo, 'else');
+    is($mock->foo,    'else');
 };
 
 subtest 'mock method with frame option' => sub {

@@ -24,6 +24,7 @@ sub bar { shift->{bar} }
 sub me  { shift }
 
 package MyNotHashClass;
+
 sub new {
     my $class = shift;
 
@@ -54,11 +55,11 @@ subtest 'mock several existing methods' => sub {
 
 subtest 'mock existing method with options' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
-    $mock->mock(foo => sub { 'bar' }, when => sub {@_ == 2});
+    $mock->mock(foo => sub { 'bar' }, when => sub { @_ == 2 });
     $mock->mock(foo => sub { 'else' });
 
     is($mock->foo(1), 'bar');
-    is($mock->foo, 'else');
+    is($mock->foo,    'else');
 };
 
 subtest 'mock not hash based object' => sub {

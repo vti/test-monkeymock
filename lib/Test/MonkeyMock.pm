@@ -271,7 +271,6 @@ sub _dispatch {
 
 1;
 __END__
-
 =pod
 
 =head1 NAME
@@ -282,12 +281,18 @@ Test::MonkeyMock - Usable mock class
 
     # Create a new mock object
     my $mock = Test::MonkeyMock->new;
-    $mock->mock(foo => sub {'bar'});
+    $mock->mock(foo => sub { 'bar' });
     $mock->foo;
+
+    # Mock method when number of arguments is even
+    $mock->mock(foo => sub { }, when => sub { @_ == 2 });
+
+    # Mock method when it's called only the first time
+    $mock->mock(foo => sub { }, frame => 0);
 
     # Mock existing object
     my $mock = Test::MonkeyMock->new(MyObject->new());
-    $mock->mock(foo => sub {'bar'});
+    $mock->mock(foo => sub { 'bar' });
     $mock->foo;
 
     # Check how many times the method was called
@@ -332,15 +337,86 @@ When mocking an existing object:
 
 =back
 
+=head1 METHODS
+
+=head2 C<new>
+
+Creates new mock or extends an existing object.
+
+    Test::MonkeyMock->new;
+    Test::MonkeyMock->new($object);
+
+=head2 C<can($method)>
+
+Returns what a real C<can> does.
+
+=head2 C<mock($method, $code, %options)>
+
+Mocks method with a subroutine.
+
+Options are conditions that are checked when dispatching a method. If the
+condition fails the next candidate is taken.
+
+=head3 C<when>
+
+When is called with original C<@_>. Thus you can check for specific parameteres.
+
+    my $mock = Test::MonkeyMock->new();
+    $mock->mock(foo => sub { 'bar' }, when => sub { @_ == 2 });
+    $mock->mock(foo => sub { 'else' });
+
+    is $mock->foo(1), 'bar';
+    is $mock->foo, 'else';
+
+=head3 C<frame>
+
+Checks how many times the mocked method was called.
+
+    my $mock = Test::MonkeyMock->new();
+    $mock->mock(foo => sub { 'bar' }, frame => 0);
+    $mock->mock(foo => sub { 'qux' }, frame => 2);
+    $mock->mock(foo => sub { 'else' });
+
+    is $mock->foo, 'bar';
+    is $mock->foo, 'else';
+    is $mock->foo, 'qux';
+    is $mock->foo, 'else';
+
+=head2 C<mocked_call_args($method, $frame)>
+
+Returns the arguments during method call. With C<$frame> you can access the call
+stack.
+
+=head2 C<mocked_call_stack($method)>
+
+Returns the complete call stack of the method.
+
+=head2 C<mocked_called($method)>
+
+Returns how many times the method was called.
+
+=head2 C<mocked_return_args($method, $frame)>
+
+Returns the return value of the method. With C<$frame> you can access the call
+stack.
+
+=head2 C<mocked_return_stack($method)>
+
+Returns the complete return stack of the method.
+
 =head1 AUTHOR
 
-Viacheslav Tykhanovskyi, C<vti@cpan.org>.
+Viacheslav Tykhanovskyi, C<viacheslav.t@gmail.com>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012-2013, Viacheslav Tykhanovskyi
+Copyright (C) 2012-2014, Viacheslav Tykhanovskyi
 
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
+
+This program is distributed in the hope that it will be useful, but without any
+warranty; without even the implied warranty of merchantability or fitness for
+a particular purpose.
 
 =cut
