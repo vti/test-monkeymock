@@ -237,6 +237,14 @@ sub _dispatch {
             if (my $when = $options->{when}) {
                 next unless $when->(@args);
             }
+
+            if (defined(my $frame = $options->{frame})) {
+                my $current_frame =
+                  $returns->{$method}->{stack}
+                  ? @{$returns->{$method}->{stack}}
+                  : 0;
+                next unless $frame == $current_frame;
+            }
         }
 
         $calls->{$method}->{called}++;
