@@ -2,6 +2,10 @@ Revision history for perl module Test::MonkeyMock
 
 {{$NEXT}}
 
+0.09 2015-12-01T09:12:45Z
+
+ - fix class names when mocking
+
 0.08 2014-12-18T22:36:28Z
 
  - support when and frame options
