@@ -145,6 +145,17 @@ subtest 'return call stack by index' => sub {
     is_deeply([$mock->mocked_call_args('foo', 2)], ['Hi there!']);
 };
 
+subtest 'correctly builds class name' => sub {
+    my $mock = Test::MonkeyMock->new(MyClass->new);
+    like ref($mock), qr/Test::MonkeyMock::MyClass::__instance__\d+/;
+
+    $mock->mock(foo => sub { });
+    like ref($mock), qr/Test::MonkeyMock::MyClass::__instance__\d+/;
+
+    $mock->mock(bar => sub { });
+    like ref($mock), qr/Test::MonkeyMock::MyClass::__instance__\d+/;
+};
+
 subtest 'throw on unknown frame' => sub {
     my $mock = Test::MonkeyMock->new(MyClass->new(foo => 'foo', bar => 'bar'));
     $mock->mock(foo => sub { 'bar' });

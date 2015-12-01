@@ -71,7 +71,7 @@ sub mock {
 
         my $ref_self = ref($self);
         my $package  = __PACKAGE__;
-        $ref_self =~ s/^${package}::.*::__instance__\d+//;
+        $ref_self =~ s/^${package}::(.*)::__instance__\d+/$1/;
 
         my $new_package =
           __PACKAGE__ . '::' . $ref_self . '::__instance__' . $magic_counter++;

@@ -87,6 +87,16 @@ subtest 'return sub ref on can' => sub {
     ok(ref $mock->can('foo') eq 'CODE');
 };
 
+subtest 'correctly builds class name' => sub {
+    my $mock = Test::MonkeyMock->new();
+    $mock->mock(foo => sub { });
+    $mock->mock(bar => sub { });
+    $mock->mock(baz => sub { });
+    $mock->mock(daz => sub { });
+
+    like ref($mock), qr/Test::MonkeyMock::8/;
+};
+
 subtest 'throw on unknown frame' => sub {
     my $mock = Test::MonkeyMock->new();
     $mock->mock(foo => sub { 'bar' });
