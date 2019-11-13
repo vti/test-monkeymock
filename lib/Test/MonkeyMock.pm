@@ -210,14 +210,14 @@ sub can {
     }
 }
 
+sub DESTROY {}
+
 our $AUTOLOAD;
 
 sub AUTOLOAD {
     my $self = shift;
 
     my ($method) = (split /::/, $AUTOLOAD)[-1];
-
-    return if $method =~ /^[A-Z]+$/;
 
     return _dispatch(ref($self), $method, $self, @_);
 }
